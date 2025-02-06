@@ -7,10 +7,9 @@ const Home = () => {
     upcoming: [],
     now_playing: [],
   });
-
-  const [searchQuery, setSearchQuery] = useState(""); // State to store search query
-  const [searchResults, setSearchResults] = useState([]); // State to store search results
-  const [isSearching, setIsSearching] = useState(false); // To toggle between showing all movies and search results
+  const [trailerUrl, setTrailerUrl] = useState(null);
+  const [showTrailer, setShowTrailer] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const API_KEY = "9091f10bd28f4837e82c95833a8d79b9";
 
@@ -23,7 +22,6 @@ const Home = () => {
       return data.results;
     };
 
-    // Fetching popular, top_rated, upcoming, and now_playing movies
     Promise.all([
       fetchMovies("popular"),
       fetchMovies("top_rated"),
@@ -34,71 +32,103 @@ const Home = () => {
     });
   }, []);
 
-  // Add movie to a list in local storage
-  const addToList = (listName, movie) => {
-    let list = JSON.parse(localStorage.getItem(listName)) || [];
-    if (!list.some((m) => m.id === movie.id)) {
-      list.push(movie);
-      localStorage.setItem(listName, JSON.stringify(list));
-      setMovies({ ...movies }); // Update state to reflect changes
-    }
-  };
-
-  // Handle search query change
-  const handleSearch = async (query) => {
-    setSearchQuery(query);
-    if (!query) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
+  const fetchTrailer = async (movieId) => {
     const response = await fetch(
-      `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${query}`
+      `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}`
     );
     const data = await response.json();
-    setSearchResults(data.results);
+    const trailer = data.results.find((video) => video.type === "Trailer" && video.site === "YouTube");
+    
+    if (trailer) {
+      setTrailerUrl(`https://www.youtube.com/embed/${trailer.key}`);
+      setShowTrailer(true);
+    }
   };
 
-  // Render movie categories and buttons
-  const renderMovies = (category, title) => (
-    <div>
-      <h2 className="section-title">{title}</h2>
-      <div className="movie-row">
-        {(isSearching ? searchResults : movies[category]).map((movie) => (
-          <div key={movie.id} className="movie-card">
-            <img src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`} alt={movie.title} />
-            <h3>{movie.title}</h3>
-            <div className="movie-buttons">
-              <button onClick={() => addToList("favorites", movie)} className="fav-btn">Favourite</button>
-              <button onClick={() => addToList("watchlist", movie)} className="watchlist-btn">Watchlist</button>
-              <button onClick={() => addToList("watched", movie)} className="watched-btn">Watched</button>
+  const getButtonLabel = (listName, movieId) => {
+    const list = JSON.parse(localStorage.getItem(listName)) || [];
+    return list.some((m) => m.id === movieId);
+  };
+
+  const toggleList = (listName, movie) => {
+    let list = JSON.parse(localStorage.getItem(listName)) || [];
+    if (list.some((m) => m.id === movie.id)) {
+      list = list.filter((m) => m.id !== movie.id); // Remove movie
+    } else {
+      list.push(movie); // Add movie
+    }
+    localStorage.setItem(listName, JSON.stringify(list));
+    setMovies({ ...movies }); // Force re-render
+  };
+
+  const renderMovies = (category, title) => {
+    const filteredMovies = movies[category].filter((movie) =>
+      movie.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+      <div>
+        <h2 className="section-title">{title}</h2>
+        <div className="movie-row">
+          {filteredMovies.map((movie) => (
+            <div key={movie.id} className="movie-card" onClick={() => fetchTrailer(movie.id)}>
+              <img src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`} alt={movie.title} />
+              <h3>{movie.title}</h3>
+              <div className="movie-buttons">
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleList("favorites", movie); }}
+                  className="fav-btn"
+                >
+                  {getButtonLabel("favorites", movie.id) ? "Favorited" : "Favourite"}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleList("watchlist", movie); }}
+                  className="watchlist-btn"
+                >
+                  {getButtonLabel("watchlist", movie.id) ? "✅" : "Watchlist"}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleList("watched", movie); }}
+                  className="watched-btn"
+                >
+                  {getButtonLabel("watched", movie.id) ? "Watched ✅" : "Watched"}
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div>
-      {/* Search Bar */}
-      <div className="search-container">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search for a movie..."
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-        />
-      </div>
+      <input
+        type="text"
+        placeholder="Search for a movie..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="search-bar"
+      />
 
-      {/* Render movie categories */}
       {renderMovies("popular", "Popular Movies")}
       {renderMovies("top_rated", "Top Rated Movies")}
       {renderMovies("upcoming", "Upcoming Movies")}
       {renderMovies("now_playing", "Now Playing")}
+
+      {showTrailer && (
+        <div className="trailer-modal">
+          <iframe
+            width="800"
+            height="450"
+            src={trailerUrl}
+            title="Movie Trailer"
+            frameBorder="0"
+            allowFullScreen
+          ></iframe>
+          <button className="close-btn" onClick={() => setShowTrailer(false)}>Close</button>
+        </div>
+      )}
     </div>
   );
 };

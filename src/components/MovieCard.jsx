@@ -1,19 +1,60 @@
-import React from "react";
+import React, { useState } from "react";
 
 const MovieCard = ({ movie }) => {
-  const { title, poster_path, release_date, overview } = movie;
+  // States for each button
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [isWatched, setIsWatched] = useState(false);
+
+  // Toggle favorite state
+  const toggleFavorite = () => {
+    setIsFavorite(!isFavorite);
+  };
+
+  // Toggle watchlist state
+  const toggleWatchlist = () => {
+    setIsInWatchlist(!isInWatchlist);
+  };
+
+  // Toggle watched state
+  const toggleWatched = () => {
+    setIsWatched(!isWatched);
+  };
 
   return (
-    <div className="border rounded-lg shadow-md overflow-hidden">
+    <div className="movie-card bg-gray-800 text-white p-4 rounded-lg shadow-lg">
       <img
-        src={`https://image.tmdb.org/t/p/w500${poster_path}`}
-        alt={title}
-        className="w-full h-80 object-cover"
+        src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+        alt={movie.title}
+        className="w-full h-64 object-cover rounded-lg"
       />
-      <div className="p-4">
-        <h3 className="text-xl font-semibold">{title}</h3>
-        <p className="text-sm text-gray-600">{release_date}</p>
-        <p className="mt-2 text-gray-800">{overview}</p>
+      <h2 className="mt-4 text-xl font-semibold">{movie.title}</h2>
+      <p>{movie.release_date}</p>
+
+      <div className="flex justify-between mt-4">
+        {/* Favorite Button */}
+        <button
+          onClick={toggleFavorite}
+          className={`px-4 py-2 rounded-lg ${isFavorite ? "bg-red-500" : "bg-gray-700"}`}
+        >
+          {isFavorite ? "Favorited" : "Favorite"}
+        </button>
+
+        {/* Watchlist Button */}
+        <button
+          onClick={toggleWatchlist}
+          className={`px-4 py-2 rounded-lg ${isInWatchlist ? "bg-green-500" : "bg-gray-700"}`}
+        >
+          {isInWatchlist ? "✓" : "+"}
+        </button>
+
+        {/* Watched Button */}
+        <button
+          onClick={toggleWatched}
+          className={`px-4 py-2 rounded-lg ${isWatched ? "bg-blue-500" : "bg-gray-700"}`}
+        >
+          {isWatched ? "Watched" : "Watch"}
+        </button>
       </div>
     </div>
   );
