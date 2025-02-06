@@ -7,6 +7,7 @@ const Home = () => {
     upcoming: [],
     now_playing: [],
   });
+  const [searchResults, setSearchResults] = useState([]); // Store searched movies
   const [trailerUrl, setTrailerUrl] = useState(null);
   const [showTrailer, setShowTrailer] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,6 +32,22 @@ const Home = () => {
       setMovies({ popular, top_rated: topRated, upcoming, now_playing: nowPlaying });
     });
   }, []);
+
+  // Search function that fetches movies from TMDB
+  const handleSearch = async (e) => {
+    const query = e.target.value;
+    setSearchTerm(query);
+
+    if (query.length > 1) {
+      const response = await fetch(
+        `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${query}`
+      );
+      const data = await response.json();
+      setSearchResults(data.results || []);
+    } else {
+      setSearchResults([]); // Reset when search is cleared
+    }
+  };
 
   const fetchTrailer = async (movieId) => {
     const response = await fetch(
@@ -61,45 +78,39 @@ const Home = () => {
     setMovies({ ...movies }); // Force re-render
   };
 
-  const renderMovies = (category, title) => {
-    const filteredMovies = movies[category].filter((movie) =>
-      movie.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    return (
-      <div>
-        <h2 className="section-title">{title}</h2>
-        <div className="movie-row">
-          {filteredMovies.map((movie) => (
-            <div key={movie.id} className="movie-card" onClick={() => fetchTrailer(movie.id)}>
-              <img src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`} alt={movie.title} />
-              <h3>{movie.title}</h3>
-              <div className="movie-buttons">
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleList("favorites", movie); }}
-                  className="fav-btn"
-                >
-                  {getButtonLabel("favorites", movie.id) ? "Favorited" : "Favourite"}
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleList("watchlist", movie); }}
-                  className="watchlist-btn"
-                >
-                  {getButtonLabel("watchlist", movie.id) ? "✅" : "Watchlist"}
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleList("watched", movie); }}
-                  className="watched-btn"
-                >
-                  {getButtonLabel("watched", movie.id) ? "Watched ✅" : "Watched"}
-                </button>
-              </div>
+  const renderMovies = (moviesList, title) => (
+    <div>
+      <h2 className="section-title">{title}</h2>
+      <div className="movie-row">
+        {moviesList.map((movie) => (
+          <div key={movie.id} className="movie-card" onClick={() => fetchTrailer(movie.id)}>
+            <img src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`} alt={movie.title} />
+            <h3>{movie.title}</h3>
+            <div className="movie-buttons">
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleList("favorites", movie); }}
+                className="fav-btn"
+              >
+                {getButtonLabel("favorites", movie.id) ? "Favorited" : "Favourite"}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleList("watchlist", movie); }}
+                className="watchlist-btn"
+              >
+                {getButtonLabel("watchlist", movie.id) ? "✅" : "Watchlist"}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleList("watched", movie); }}
+                className="watched-btn"
+              >
+                {getButtonLabel("watched", movie.id) ? "Watched ✅" : "Watched"}
+              </button>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
-    );
-  };
+    </div>
+  );
 
   return (
     <div>
@@ -107,14 +118,20 @@ const Home = () => {
         type="text"
         placeholder="Search for a movie..."
         value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+        onChange={handleSearch}
         className="search-bar"
       />
 
-      {renderMovies("popular", "Popular Movies")}
-      {renderMovies("top_rated", "Top Rated Movies")}
-      {renderMovies("upcoming", "Upcoming Movies")}
-      {renderMovies("now_playing", "Now Playing")}
+      {searchResults.length > 0 ? (
+        renderMovies(searchResults, "Search Results")
+      ) : (
+        <>
+          {renderMovies(movies.popular, "Popular Movies")}
+          {renderMovies(movies.top_rated, "Top Rated Movies")}
+          {renderMovies(movies.upcoming, "Upcoming Movies")}
+          {renderMovies(movies.now_playing, "Now Playing")}
+        </>
+      )}
 
       {showTrailer && (
         <div className="trailer-modal">
