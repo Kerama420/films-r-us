@@ -11,41 +11,51 @@ const Home = () => {
   const [trailerUrl, setTrailerUrl] = useState(null);
   const [showTrailer, setShowTrailer] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1); // Track pagination
 
   const API_KEY = "9091f10bd28f4837e82c95833a8d79b9";
 
+  const fetchMovies = async (category, pageNum = 1) => {
+    const response = await fetch(
+      `https://api.themoviedb.org/3/movie/${category}?api_key=${API_KEY}&page=${pageNum}`
+    );
+    const data = await response.json();
+    return data.results;
+  };
+
   useEffect(() => {
-    const fetchMovies = async (category) => {
-      const response = await fetch(
-        `https://api.themoviedb.org/3/movie/${category}?api_key=${API_KEY}`
-      );
-      const data = await response.json();
-      return data.results;
-    };
-
+    setLoading(true);
     Promise.all([
-      fetchMovies("popular"),
-      fetchMovies("top_rated"),
-      fetchMovies("upcoming"),
-      fetchMovies("now_playing"),
+      fetchMovies("popular", page),
+      fetchMovies("top_rated", page),
+      fetchMovies("upcoming", page),
+      fetchMovies("now_playing", page),
     ]).then(([popular, topRated, upcoming, nowPlaying]) => {
-      setMovies({ popular, top_rated: topRated, upcoming, now_playing: nowPlaying });
+      setMovies((prevMovies) => ({
+        popular: [...prevMovies.popular, ...popular],
+        top_rated: [...prevMovies.top_rated, ...topRated],
+        upcoming: [...prevMovies.upcoming, ...upcoming],
+        now_playing: [...prevMovies.now_playing, ...nowPlaying],
+      }));
+      setLoading(false);
     });
-  }, []);
+  }, [page]); // Fetch movies whenever `page` increases
 
-  // Search function that fetches movies from TMDB
   const handleSearch = async (e) => {
     const query = e.target.value;
     setSearchTerm(query);
 
     if (query.length > 1) {
+      setLoading(true);
       const response = await fetch(
         `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${query}`
       );
       const data = await response.json();
       setSearchResults(data.results || []);
+      setLoading(false);
     } else {
-      setSearchResults([]); // Reset when search is cleared
+      setSearchResults([]);
     }
   };
 
@@ -55,24 +65,19 @@ const Home = () => {
     );
     const data = await response.json();
     const trailer = data.results.find((video) => video.type === "Trailer" && video.site === "YouTube");
-    
+
     if (trailer) {
       setTrailerUrl(`https://www.youtube.com/embed/${trailer.key}`);
       setShowTrailer(true);
     }
   };
 
-  const getButtonLabel = (listName, movieId) => {
-    const list = JSON.parse(localStorage.getItem(listName)) || [];
-    return list.some((m) => m.id === movieId);
-  };
-
   const toggleList = (listName, movie) => {
     let list = JSON.parse(localStorage.getItem(listName)) || [];
     if (list.some((m) => m.id === movie.id)) {
-      list = list.filter((m) => m.id !== movie.id); // Remove movie
+      list = list.filter((m) => m.id !== movie.id);
     } else {
-      list.push(movie); // Add movie
+      list.push(movie);
     }
     localStorage.setItem(listName, JSON.stringify(list));
     setMovies({ ...movies }); // Force re-render
@@ -87,23 +92,14 @@ const Home = () => {
             <img src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`} alt={movie.title} />
             <h3>{movie.title}</h3>
             <div className="movie-buttons">
-              <button
-                onClick={(e) => { e.stopPropagation(); toggleList("favorites", movie); }}
-                className="fav-btn"
-              >
-                {getButtonLabel("favorites", movie.id) ? "Favorited" : "Favourite"}
+              <button onClick={(e) => { e.stopPropagation(); toggleList("favorites", movie); }}>
+                {JSON.parse(localStorage.getItem("favorites") || "[]").some((m) => m.id === movie.id) ? "Favorited" : "Favourite"}
               </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); toggleList("watchlist", movie); }}
-                className="watchlist-btn"
-              >
-                {getButtonLabel("watchlist", movie.id) ? "✅" : "Watchlist"}
+              <button onClick={(e) => { e.stopPropagation(); toggleList("watchlist", movie); }}>
+                {JSON.parse(localStorage.getItem("watchlist") || "[]").some((m) => m.id === movie.id) ? "✅" : "Watchlist"}
               </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); toggleList("watched", movie); }}
-                className="watched-btn"
-              >
-                {getButtonLabel("watched", movie.id) ? "Watched ✅" : "Watched"}
+              <button onClick={(e) => { e.stopPropagation(); toggleList("watched", movie); }}>
+                {JSON.parse(localStorage.getItem("watched") || "[]").some((m) => m.id === movie.id) ? "Watched ✅" : "Watched"}
               </button>
             </div>
           </div>
@@ -111,6 +107,21 @@ const Home = () => {
       </div>
     </div>
   );
+
+  // Infinite Scroll Effect
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 300
+      ) {
+        setPage((prevPage) => prevPage + 1);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <div>
@@ -121,6 +132,8 @@ const Home = () => {
         onChange={handleSearch}
         className="search-bar"
       />
+
+      {loading && <p className="loading-text">Loading movies...</p>}
 
       {searchResults.length > 0 ? (
         renderMovies(searchResults, "Search Results")
