@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 const Home = () => {
+  const location = useLocation();
   const [movies, setMovies] = useState({
     popular: [],
     top_rated: [],
@@ -15,6 +17,12 @@ const Home = () => {
   const [page, setPage] = useState(1); // Track pagination
 
   const API_KEY = "9091f10bd28f4837e82c95833a8d79b9";
+
+  useEffect(() => {
+    setSearchTerm("");
+    setSearchResults([]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [location.pathname]);
 
   const fetchMovies = async (category, pageNum = 1) => {
     const response = await fetch(
