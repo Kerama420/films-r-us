@@ -1,4 +1,4 @@
-🎬** Films-r-us**
+**Films-r-us**
 A React-based movie discovery app that allows users to explore movies, watch trailers, and manage their personalized watchlists. Built with React, TMDB API, and local storage for a seamless movie experience.
 
 📌 **Features**
